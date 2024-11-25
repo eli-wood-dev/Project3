@@ -4,5 +4,5 @@
 .vscode/launch.json
 .vscode/ipch
 
-.include/wifi.h
-.include/thingspeak.h
+include/wifi.h
+include/thingspeak.h

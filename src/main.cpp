@@ -36,6 +36,7 @@ bool sendFromLittleFS(String);
 void updateSensor();
 void handleData();
 void updateData(String);
+int uptimeToMinutes(JsonDocument uptime);
 
 unsigned long lastUpdate = 0;
 
@@ -49,33 +50,6 @@ NTPClient ntpClient(ntpUDP, NTP_SERVER);
 
 ESP8266WebServer webServer(80);
 Adafruit_AHTX0 aht;
-
-//create data struct
-//mimics response json with added aht sensor data
-// struct {
-//   float temperature;
-//   float humidity;
-//   //maybe change to just use seconds
-//   struct {
-//     int days;
-//     int hours;
-//     int minutes;
-//     int seconds;
-//   } uptime;
-//   struct {
-//     float last_minute;
-//   } cpu_loading;
-//   struct {
-//     String partition;
-//     String total;
-//     String used;
-//   } disk_space;
-//   struct {
-//     String total;
-//     String available;
-//     String free;
-//   } memory;
-// } data;
 
 JsonDocument data;
 
@@ -149,10 +123,27 @@ void loop() {
     updateServer();
     updateSensor();
     lastUpdate = millis();
+
+    serializeJsonPretty(data, Serial);
+    JsonDocument uptime = data["uptime"];
+    int minutes = uptimeToMinutes(uptime);
+
+    Serial.println(minutes);
   }
   
 
   webServer.handleClient();
+}
+
+int uptimeToMinutes(JsonDocument uptime){
+  int days = uptime["days"];
+  int hours = uptime["hours"];
+  int minutes = uptime["minutes"];
+
+  hours += days * 24;
+  minutes += hours * 60;
+
+  return minutes;
 }
 
 void updateSensor(){

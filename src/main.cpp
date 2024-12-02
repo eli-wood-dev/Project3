@@ -20,6 +20,8 @@
 #include <WiFiUdp.h>
 #include <ESP8266WebServer.h>
 #include <Adafruit_AHTX0.h>
+#include <ArduinoJson.h>
+
 
 #define NTP_SERVER "1.ca.pool.ntp.org"
 #define CSUNIX_ENDPOINT "https://csunix.mohawkcollege.ca/~visser/COMP-10184/serverStats.php"
@@ -50,30 +52,32 @@ Adafruit_AHTX0 aht;
 
 //create data struct
 //mimics response json with added aht sensor data
-struct {
-  float temperature;
-  float humidity;
-  //maybe change to just use seconds
-  struct {
-    int days;
-    int hours;
-    int minutes;
-    int seconds;
-  } uptime;
-  struct {
-    float last_minute;
-  } cpu_loading;
-  struct {
-    String partition;
-    String total;
-    String used;
-  } disk_space;
-  struct {
-    String total;
-    String available;
-    String free;
-  } memory;
-} data;
+// struct {
+//   float temperature;
+//   float humidity;
+//   //maybe change to just use seconds
+//   struct {
+//     int days;
+//     int hours;
+//     int minutes;
+//     int seconds;
+//   } uptime;
+//   struct {
+//     float last_minute;
+//   } cpu_loading;
+//   struct {
+//     String partition;
+//     String total;
+//     String used;
+//   } disk_space;
+//   struct {
+//     String total;
+//     String available;
+//     String free;
+//   } memory;
+// } data;
+
+JsonDocument data;
 
 void setup() {
   Serial.begin(115200);
@@ -154,8 +158,8 @@ void loop() {
 void updateSensor(){
   sensors_event_t humiditySource, tempSource;
   aht.getEvent(&humiditySource, &tempSource);
-  data.temperature = tempSource.temperature;
-  data.humidity = humiditySource.relative_humidity;
+  data["temperature"] = tempSource.temperature;
+  data["humidity"] = humiditySource.relative_humidity;
 }
 
 void updateServer() {
@@ -175,6 +179,7 @@ void updateServer() {
   if ( respCode == HTTP_CODE_OK ) {
     String serverResponse = httpClient.getString();
     Serial.println(" Server payload: " + serverResponse);
+    updateData(serverResponse);
   } else if (respCode > 0) {
     Serial.println(" Made a secure connection. Server or URL problems?");
   } else {
@@ -185,6 +190,11 @@ void updateServer() {
 
 void updateData(String newData){
   //parse input json and populate data struct
+  DeserializationError error = deserializeJson(data, newData);
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+  }
 }
 
 void updateTime(){
@@ -284,11 +294,8 @@ bool sendFromLittleFS(String path) {
 }
 
 void handleData(){
-  String outputJSON = 
-  "{"
-    "\"temp\": \"" + String(data.temperature) + "\", "
-    "\"humidity\": \"" + String(data.humidity) + "\""
-  "}";
+  String outputJSON;
+  serializeJson(data, outputJSON);
 
   // Serial.println(outputJSON);
   //send the response

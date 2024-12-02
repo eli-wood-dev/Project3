@@ -28,6 +28,13 @@
 
 #define UPDATE_FREQUENCY_MS 5000
 
+#define UPTIME_FIELD "field1"
+#define MEMORY_FIELD "field2"
+#define LOADING_FIELD "field3"
+#define TEMPERATURE_FIELD "field4"
+
+#define THINGSPEAK "https://api.thingspeak.com/update"
+
 void updateServer();
 void updateTime();
 void handleNotFound();
@@ -36,7 +43,8 @@ bool sendFromLittleFS(String);
 void updateSensor();
 void handleData();
 void updateData(String);
-int uptimeToMinutes(JsonDocument uptime);
+int uptimeToMinutes(JsonDocument);
+void updateThingspeak(int, int, float, float);
 
 unsigned long lastUpdate = 0;
 
@@ -125,14 +133,85 @@ void loop() {
     lastUpdate = millis();
 
     serializeJsonPretty(data, Serial);
-    JsonDocument uptime = data["uptime"];
+    JsonDocument uptime;
+
+    DeserializationError uptimeError = deserializeJson(uptime, data["uptime"].as<String>());
+
+    // Test if parsing succeeds
+    if (uptimeError) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(uptimeError.f_str());
+      return;
+    }
+
     int minutes = uptimeToMinutes(uptime);
 
-    Serial.println(minutes);
+    JsonDocument memory;
+
+    DeserializationError memoryError = deserializeJson(memory, data["memory"].as<String>());
+
+    // Test if parsing succeeds
+    if (memoryError) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(memoryError.f_str());
+      return;
+    }
+
+    int available = atoi( memory["available"].as<String>().substring(0, memory["available"].as<String>().length()-2).c_str() );
+
+    JsonDocument loading;
+
+    DeserializationError loadingError = deserializeJson(loading, data["cpu_loading"].as<String>());
+
+    // Test if parsing succeeds
+    if (loadingError) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(loadingError.f_str());
+      return;
+    }
+
+    updateThingspeak(minutes, available, loading["last_minute"], data["temperature"]);
   }
   
 
   webServer.handleClient();
+}
+
+void updateThingspeak(int uptime, int memory, float loading, float temp){
+  // Make an HTTPS GET request...
+  HTTPClient httpClient;
+  httpClient.begin(wifiClient, THINGSPEAK + 
+    String("?api_key=") + WRITE_API_KEY + String("&") + 
+    UPTIME_FIELD + String("=") + uptime + String("&") + 
+    MEMORY_FIELD + String("=") + memory + String("&") + 
+    LOADING_FIELD + String("=") + loading + String("&") +
+    TEMPERATURE_FIELD + String("=") + temp
+  );
+
+  Serial.println(UPTIME_FIELD + String("=") + uptime + String("&") + 
+    MEMORY_FIELD + String("=") + memory + String("&") + 
+    LOADING_FIELD + String("=") + loading + String("&") +
+    TEMPERATURE_FIELD + String("=") + temp);
+
+  // tell user where we are going
+  Serial.println("\nContacting Thingspeak");
+
+  // make an HTTP GET request
+  int respCode = httpClient.GET();
+
+  // print HTTP response
+  Serial.printf("HTTP Response Code: %d\n", respCode);
+
+  if ( respCode == HTTP_CODE_OK ) {
+    String serverResponse = httpClient.getString();
+    Serial.println(" Server payload: " + serverResponse);
+    updateData(serverResponse);
+  } else if (respCode > 0) {
+    Serial.println(" Made a secure connection. Server or URL problems?");
+  } else {
+    Serial.println(" Can't make a secure connection to server :-(");
+  }
+  httpClient.end();
 }
 
 int uptimeToMinutes(JsonDocument uptime){

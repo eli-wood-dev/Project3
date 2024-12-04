@@ -84,15 +84,29 @@ async function setValues(){
     }
 }
 
+/**
+ * requests the server data
+ * @returns the server data
+ */
 async function getData(){
     const res = await fetch(window.location.origin + "/data");
     return await res.json();
 }
 
+/**
+ * converts kilobytes to megabytes
+ * @param {String} kilobytes The kilobytes to be converted (ends with KB)
+ * @returns the converted megabytes ending with MB
+ */
 function KBToMB(kilobytes){
     return Math.round(kilobytes.substring(0, kilobytes.length-2) / 1024) + "MB";
 }
 
+/**
+ * converts a JSON of uptime data to total seconds
+ * @param {object} uptimeJson the uptime object containing days, hours, minutes, and seconds
+ * @returns the number of seconds of uptime
+ */
 function uptimeToSeconds(uptimeJson){
     let days = uptimeJson.days;
     let hours = uptimeJson.hours + days * 24;

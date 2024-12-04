@@ -1,7 +1,7 @@
 // COMP-10184 – Mohawk College
-// IOT Webserver
+// Project 3
 //
-// Description
+// This program makes an HTTPS request to CSUNIX to get server data, sends the data to ThingSpeak using HTTPS, and hosts an HTTP web server to display the information
 //
 // @author Eli Wood
 // @id 000872273
@@ -131,6 +131,8 @@ void loop() {
     updateSensor();
     lastUpdate = millis();
 
+    // generate data to send to thingspeak
+
     // serializeJsonPretty(data, Serial);
     JsonDocument uptime;
 
@@ -177,6 +179,11 @@ void loop() {
   webServer.handleClient();
 }
 
+/// @brief Updates thingspeak with server and sensor data
+/// @param uptime the uptime of the server in minutes
+/// @param memory the available memory on the server
+/// @param loading the CPU loading of the server
+/// @param temp the current temperature of the AHT sensor
 void updateThingspeak(int uptime, int memory, float loading, float temp){
   // Make an HTTPS GET request...
   HTTPClient httpClient;
@@ -209,6 +216,9 @@ void updateThingspeak(int uptime, int memory, float loading, float temp){
   httpClient.end();
 }
 
+/// @brief converts the uptime JSON to uptime minutes
+/// @param uptime JSON of the uptime - includes days, hours, and minutes
+/// @return calculated uptime in seconds
 int uptimeToMinutes(JsonDocument uptime){
   int days = uptime["days"];
   int hours = uptime["hours"];
@@ -220,6 +230,7 @@ int uptimeToMinutes(JsonDocument uptime){
   return minutes;
 }
 
+/// @brief updates the data JSON with the AHT sensor data
 void updateSensor(){
   sensors_event_t humiditySource, tempSource;
   aht.getEvent(&humiditySource, &tempSource);
@@ -227,6 +238,7 @@ void updateSensor(){
   data["humidity"] = humiditySource.relative_humidity;
 }
 
+/// @brief requests data from the CSUNIX server using HTTPS
 void updateServer() {
   // Make an HTTPS GET request...
   HTTPClient httpClient;
@@ -253,6 +265,8 @@ void updateServer() {
   httpClient.end();
 }
 
+/// @brief updates the data JSON with the server response
+/// @param newData the response from the CSUNIX server
 void updateData(String newData){
   //parse input json and populate data struct
   DeserializationError error = deserializeJson(data, newData);
@@ -262,6 +276,7 @@ void updateData(String newData){
   }
 }
 
+/// @brief gets the current time from an NTP server to validate TLS certificates
 void updateTime(){
   if ( ntpClient.update() ) {
     // need to know the current time to validate a certificate.
@@ -271,9 +286,7 @@ void updateTime(){
 
 }
 
-/**
- * handles when a file or resource is not found
- */
+/// @brief handles when the requested endpoint or file is not found
 void handleNotFound(){
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -290,22 +303,17 @@ void handleNotFound(){
   Serial.println(message);
 }
 
-/**
- * handles a request for a file
- * @param path the path to the requested file
- */
+/// @brief handles a request for a file
+/// @param path the path to the requested file
 void handleFileRequest(String path){
   if(!sendFromLittleFS(path)){
     handleNotFound();
   }
 }
 
-/**
- * this function examines the URL from the client and based on the extension
- * determines the type of response to send.
- * @param path the path to the file being sent
- * @return true if the file was sent successfully
- */
+/// @brief this function examines the URL from the client and based on the extension determines the type of response to send.
+/// @param path the path to the file being sent
+/// @return true if the file was sent successfully
 bool sendFromLittleFS(String path) {
   bool bStatus;
   String contentType;
@@ -358,6 +366,7 @@ bool sendFromLittleFS(String path) {
   return bStatus;
 }
 
+/// @brief sends the data JSON to the client
 void handleData(){
   String outputJSON;
   serializeJson(data, outputJSON);

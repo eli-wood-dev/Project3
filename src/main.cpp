@@ -111,11 +111,10 @@ void setup() {
 
 
   //create handlers
-  // copied from old project
-  // webServer.on("/", [](){handleFileRequest("index.html");});
-  // webServer.on("/index.html", [](){handleFileRequest("index.html");});
-  // webServer.on("/style.css", [](){handleFileRequest("style.css");});
-  // webServer.on("/script.js", [](){handleFileRequest("script.js");});
+  webServer.on("/", [](){handleFileRequest("index.html");});
+  webServer.on("/index.html", [](){handleFileRequest("index.html");});
+  webServer.on("/style.css", [](){handleFileRequest("style.css");});
+  webServer.on("/script.js", [](){handleFileRequest("script.js");});
   webServer.on("/data", handleData);
 
   webServer.onNotFound(handleNotFound);
@@ -132,7 +131,7 @@ void loop() {
     updateSensor();
     lastUpdate = millis();
 
-    serializeJsonPretty(data, Serial);
+    // serializeJsonPretty(data, Serial);
     JsonDocument uptime;
 
     DeserializationError uptimeError = deserializeJson(uptime, data["uptime"].as<String>());
@@ -171,9 +170,10 @@ void loop() {
     }
 
     updateThingspeak(minutes, available, loading["last_minute"], data["temperature"]);
+
+    // serializeJsonPretty(data, Serial);
   }
   
-
   webServer.handleClient();
 }
 
@@ -188,11 +188,6 @@ void updateThingspeak(int uptime, int memory, float loading, float temp){
     TEMPERATURE_FIELD + String("=") + temp
   );
 
-  Serial.println(UPTIME_FIELD + String("=") + uptime + String("&") + 
-    MEMORY_FIELD + String("=") + memory + String("&") + 
-    LOADING_FIELD + String("=") + loading + String("&") +
-    TEMPERATURE_FIELD + String("=") + temp);
-
   // tell user where we are going
   Serial.println("\nContacting Thingspeak");
 
@@ -205,7 +200,7 @@ void updateThingspeak(int uptime, int memory, float loading, float temp){
   if ( respCode == HTTP_CODE_OK ) {
     String serverResponse = httpClient.getString();
     Serial.println(" Server payload: " + serverResponse);
-    updateData(serverResponse);
+    // updateData(serverResponse);
   } else if (respCode > 0) {
     Serial.println(" Made a secure connection. Server or URL problems?");
   } else {
@@ -367,7 +362,7 @@ void handleData(){
   String outputJSON;
   serializeJson(data, outputJSON);
 
-  // Serial.println(outputJSON);
+  Serial.println("to send: " + outputJSON);
   //send the response
   webServer.send(200, "application/json", outputJSON);
 }
